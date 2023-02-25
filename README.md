@@ -12,6 +12,17 @@ connection Pooling による aws Aurora で発生する以下の問題に改善
 
 ## Usage
 
+## API Server
+
+```bash
+# run api server
+cd app
+yarn start:dev
+
+```
+
+- swagger document: http://localhost:3000/v1/docs
+
 ### Databases (master & slave)
 
 ```bash
