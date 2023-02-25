@@ -1,6 +1,8 @@
 import type { EntityManager, EntityTarget, FindOneOptions } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
+import type { InsertResult } from 'typeorm';
+
 export { In } from 'typeorm';
 export { QueryDeepPartialEntity };
 export type QueryParams = string | number | any[];
@@ -24,4 +26,8 @@ export interface Database {
     model: EntityTarget<T>,
     options?: FindOneOptions,
   ): Promise<T | undefined>;
+  insert<T>(
+    model: EntityTarget<T>,
+    entity: QueryDeepPartialEntity<T> | QueryDeepPartialEntity<T>[],
+  ): Promise<InsertResult>;
 }

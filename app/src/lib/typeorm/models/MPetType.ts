@@ -7,7 +7,7 @@ export class MPetType {
     name: 'id',
     comment: 'id',
   })
-  id?: string;
+  id: number;
 
   @Column('char', {
     name: 'code',
