@@ -1,0 +1,62 @@
+version: '3.7'
+
+services:
+  master:
+    container_name: mysql_master
+    build:
+      context: database/
+      dockerfile: ./Dockerfile
+    volumes:
+      - type: volume
+        source: master_db
+        target: /var/lib/mysql
+      - type: volume
+        source: master_log
+        target: /var/log/mysql/
+      - type: bind
+        source: ./database/conf/master/my.cnf
+        target: /etc/my.cnf
+      - type: bind
+        source: ./database/initdb.d/master
+        target: /docker-entrypoint-initdb.d
+    tty: true
+    ports:
+      - 3306:3306
+    networks:
+      - replica-network
+
+  slave:
+    container_name: mysql_slave
+    build:
+      context: database/
+      dockerfile: ./Dockerfile
+    volumes:
+      - type: volume
+        source: slave_db
+        target: /var/lib/mysql
+      - type: volume
+        source: slave_log
+        target: /var/log/mysql/
+      - type: bind
+        source: ./database/conf/slave/my.cnf
+        target: /etc/my.cnf
+      - type: bind
+        source: ./database/initdb.d/slave
+        target: /docker-entrypoint-initdb.d
+    tty: true
+    ports:
+      - 3307:3306
+    networks:
+      - replica-network
+    depends_on:
+      - master
+
+volumes:
+  master_db:
+  master_log:
+  slave_db:
+  slave_log:
+
+networks:
+  replica-network:
+    driver: bridge
