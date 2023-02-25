@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from 'src/config/config.service';
 import { DataSource } from 'typeorm';
 import * as Entities from './models';
+import { LoggerService } from 'src/logger';
 
 import type { Database } from 'src/interface';
 
@@ -20,10 +21,17 @@ import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialE
 export type NamedQueryParams = { [key: string]: any };
 
 @Injectable()
-export class TypeormService implements Database {
+export class TypeormService implements Database, OnModuleInit {
   private readonly _dataSource: DataSource;
+  private readonly _lifecycleTime: number;
 
-  constructor(private _configService: ConfigService) {
+  constructor(
+    private readonly _configService: ConfigService,
+    private readonly _loggerService: LoggerService,
+  ) {
+    this._lifecycleTime =
+      this._configService.databaseConnectionLifecycle || 30000;
+
     this._dataSource = new DataSource({
       type: 'mysql',
       replication: {
@@ -50,16 +58,18 @@ export class TypeormService implements Database {
     });
   }
 
-  // private async connect<T>(
-  //   callback: (ds: DataSource) => Promise<T | undefined>,
-  // ): Promise<T> {
-  //   await this._dataSource.initialize();
-  //   const res = await callback(this._dataSource).catch((err) => {
-  //     throw new Error(err);
-  //   });
-  //   await this._dataSource.destroy();
-  //   return res;
-  // }
+  // 初期疎通確認
+  async onModuleInit(): Promise<void> {
+    await this._dataSource.initialize();
+    // connection pool reset
+    setInterval(async () => {
+      await this._dataSource.destroy();
+      this._loggerService.debug('reseated connection pool');
+
+      await this._dataSource.initialize();
+      this._loggerService.debug('reconnected connection pool');
+    }, this._lifecycleTime);
+  }
 
   public async close(): Promise<void> {
     await this._dataSource.destroy();
@@ -69,22 +79,11 @@ export class TypeormService implements Database {
     model: EntityTarget<T>,
     options?: FindOneOptions,
   ): Promise<T | undefined> {
-    await this._dataSource.initialize();
     const repository = this._dataSource.getRepository(model);
     const data = await repository.findOne(options).catch((err) => {
       throw new Error(err);
     });
-    await this._dataSource.destroy();
     return data;
-    // return this.connect<T | undefined>(async (ds: DataSource) => {
-    //   const repository = ds.getRepository(model);
-    //   const data = await repository.findOne(options).catch((err) => {
-    //     throw new Error(err);
-    //   });
-    //   return data;
-    // }).catch((err) => {
-    //   throw err;
-    // });
   }
 
   public async insert<T>(

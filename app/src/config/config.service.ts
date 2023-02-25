@@ -3,7 +3,7 @@ import { ConfigService as NestConfigService } from '@nestjs/config';
 
 @Injectable()
 export class ConfigService {
-  constructor(private _configService: NestConfigService) {}
+  constructor(private readonly _configService: NestConfigService) {}
 
   get writeDatabaseHost(): string {
     return this._configService.get('WRITE_DB_HOST');
@@ -47,5 +47,9 @@ export class ConfigService {
       return false;
     }
     return true;
+  }
+
+  get databaseConnectionLifecycle(): number {
+    return this._configService.get('DB_CONNECTION_LIFECYCLE_TIME');
   }
 }

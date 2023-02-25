@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeormService } from './typeorm.service';
 import { TypeormModule } from './typeorm.module';
-import { SampleTable01 } from './models';
+import { MPetType } from './models';
 
 describe('TypeormService', () => {
   let typeormService: TypeormService;
@@ -21,7 +21,7 @@ describe('TypeormService', () => {
 
   describe('TypeormService.findOne', () => {
     it('SELECT * FROM sample_table_01', async () => {
-      const got = await typeormService.findOne<SampleTable01>(SampleTable01, {
+      const got = await typeormService.findOne<MPetType>(MPetType, {
         where: {
           id: 1,
         },
