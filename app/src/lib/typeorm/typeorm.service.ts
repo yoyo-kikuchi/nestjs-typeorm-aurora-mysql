@@ -17,6 +17,7 @@ import type {
   ObjectLiteral,
   NamedQueryParams,
   QueryDeepPartialEntity,
+  FindManyOptions,
 } from 'src/interface';
 
 const entities = Object.values(Entities);
@@ -56,12 +57,13 @@ export class TypeormService implements Database, OnModuleInit {
       entities: [...entities],
       synchronize: false,
       logging: this._configService.databaseLogging,
+      trace: true,
     });
   }
 
   // 初期疎通確認
   public async onModuleInit(): Promise<void> {
-    console.log('onModuleInit!!');
+    this._loggerService.info('TypeormService onModuleInit!!');
 
     await this._dataSource.initialize();
     // connection pool reset
@@ -74,14 +76,29 @@ export class TypeormService implements Database, OnModuleInit {
     }, this._lifecycleTime);
   }
 
+  public async initialize(): Promise<void> {
+    await this._dataSource.initialize();
+  }
+
   public async close(): Promise<void> {
     await this._dataSource.destroy();
+  }
+
+  public async find<T>(
+    model: EntityTarget<T>,
+    options?: FindManyOptions,
+  ): Promise<T[]> {
+    const repository = this._dataSource.getRepository(model);
+    const data = await repository.find(options).catch((err) => {
+      throw new Error(err);
+    });
+    return data;
   }
 
   public async findOne<T>(
     model: EntityTarget<T>,
     options?: FindOneOptions,
-  ): Promise<T | undefined> {
+  ): Promise<T | null> {
     const repository = this._dataSource.getRepository(model);
     const data = await repository.findOne(options).catch((err) => {
       throw new Error(err);
@@ -137,36 +154,26 @@ export class TypeormService implements Database, OnModuleInit {
     return data;
   }
 
-  public async select<T = any>(
+  public async query<T = any>(
     query: string,
     parameters?: QueryParams[],
-  ): Promise<T[]> {
-    await this._dataSource.initialize();
+  ): Promise<T> {
     const res = await this._dataSource.query(query, parameters).catch((err) => {
       throw err;
     });
-    await this._dataSource.destroy();
     return res;
   }
 
   // In case in (:...param)
-  public async namedSelect<T = any>(
+  public async namedQuery<T = any>(
     query: string,
     parameters?: NamedQueryParams,
-  ): Promise<T[]> {
+  ): Promise<T> {
     const [q, bindValues] = this.named(query, parameters);
-
     const res = await this._dataSource.query(q, bindValues).catch((err) => {
       throw err;
     });
     return res;
-  }
-
-  public async exec(query: string, parameters?: QueryParams[]): Promise<void> {
-    await this._dataSource.query(query, parameters).catch((err) => {
-      throw err;
-    });
-    return;
   }
 
   public async transact(

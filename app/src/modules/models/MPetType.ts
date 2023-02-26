@@ -33,7 +33,7 @@ export class MPetType {
     type: 'datetime',
     nullable: false,
   })
-  cretedAt: string;
+  createdAt: string;
 
   @Column('char', {
     name: 'update_user_cd',

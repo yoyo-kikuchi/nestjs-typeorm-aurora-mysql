@@ -1,35 +1,231 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TypeormService } from './typeorm.service';
+import { TypeormModule } from './typeorm.module';
+import { LoggerModule } from 'src/logger';
+import { In } from 'src/interface';
+
 import { MPetType } from 'src/modules/models';
 
 describe('TypeormService', () => {
   let typeormService: TypeormService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [],
+    const module = await Test.createTestingModule({
+      imports: [TypeormModule, LoggerModule],
       providers: [TypeormService],
     }).compile();
     typeormService = module.get<TypeormService>(TypeormService);
+    await typeormService.initialize();
   });
 
-  // afterEach(async (done) => {
-  //   await typeormService.close();
-  //   done();
-  // });
+  afterEach(async () => {
+    await typeormService.close();
+  });
 
-  describe('TypeormService.findOne', () => {
-    it('SELECT * FROM sample_table_01', async () => {
-      const got = await typeormService.findOne<MPetType>(MPetType, {
-        where: {
+  describe('TypeormService.find()', () => {
+    it('should return array', async () => {
+      await expect(
+        typeormService.find<MPetType>(MPetType, {
+          where: {
+            id: In([1, 2]),
+          },
+        }),
+      ).resolves.toEqual([
+        {
           id: 1,
+          code: '001',
+          value: '猫',
+          createUserCd: 'SYSTEM',
+          createdAt: new Date('2023-02-25T10:46:47.000Z'),
+          updateUserCd: 'SYSTEM',
+          updatedAt: new Date('2023-02-25T10:46:47.000Z'),
+        },
+        {
+          id: 2,
+          code: '002',
+          value: '犬',
+          createUserCd: 'SYSTEM',
+          createdAt: new Date('2023-02-25T10:46:47.000Z'),
+          updateUserCd: 'SYSTEM',
+          updatedAt: new Date('2023-02-25T10:46:47.000Z'),
+        },
+      ]);
+    });
+
+    it('should return empty array', async () => {
+      await expect(
+        typeormService.find<MPetType>(MPetType, {
+          where: {
+            id: 100,
+          },
+        }),
+      ).resolves.toEqual([]);
+    });
+  });
+
+  describe('TypeormService.findOne()', () => {
+    it('should return a value', async () => {
+      await expect(
+        typeormService.findOne<MPetType>(MPetType, {
+          where: {
+            code: '001',
+          },
+        }),
+      ).resolves.toEqual({
+        id: 1,
+        code: '001',
+        value: '猫',
+        createUserCd: 'SYSTEM',
+        cretedAt: new Date('2023-02-25T10:46:47.000Z'),
+        updateUserCd: 'SYSTEM',
+        updatedAt: new Date('2023-02-25T10:46:47.000Z'),
+      });
+    });
+
+    it('should return a value', async () => {
+      await expect(
+        typeormService.findOne<MPetType>(MPetType, {
+          where: {
+            id: 100,
+          },
+        }),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe('TypeormService.insert()', () => {
+    it('should return a value', async () => {
+      await typeormService
+        .query('DELETE FROM m_pet_type WHERE id = 8')
+        .catch((err) => {
+          throw err;
+        });
+
+      await expect(
+        typeormService.insert<MPetType>(MPetType, {
+          id: 8,
+          code: '008',
+          value: '鹿',
+        }),
+      ).resolves.toEqual({
+        generatedMaps: [{}],
+        identifiers: [
+          {
+            id: 8,
+          },
+        ],
+        raw: {
+          affectedRows: 1,
+          fieldCount: 0,
+          info: '',
+          insertId: 8,
+          serverStatus: 2,
+          warningStatus: 0,
         },
       });
-      console.log(got);
     });
-    it('SELECT 1', async () => {
-      const got = await typeormService.select('select 1');
-      console.log(got);
+  });
+
+  describe('TypeormService.delete()', () => {
+    it('should return a value', async () => {
+      typeormService.insert<MPetType>(MPetType, {
+        id: 9,
+        code: '009',
+        value: '蛇',
+      });
+
+      await expect(
+        typeormService.delete<MPetType>(MPetType, {
+          id: 9,
+        }),
+      ).resolves.toEqual({
+        affected: 1,
+        raw: [],
+      });
+    });
+  });
+
+  describe('TypeormService.query()', () => {
+    it('SELECT 1 should return array result', async () => {
+      await expect(typeormService.query('select 1')).resolves.toEqual([
+        {
+          '1': '1',
+        },
+      ]);
+    });
+
+    it('INSERT value to m_pet_type should return object', async () => {
+      await typeormService
+        .query('DELETE FROM m_pet_type WHERE id = 6')
+        .catch((err) => {
+          throw err;
+        });
+
+      const query =
+        'INSERT INTO `m_pet_type` (`id`, `code`, `value`) VALUES (6, ?, ?);';
+      await expect(typeormService.query(query, ['005', '豹'])).resolves.toEqual(
+        {
+          affectedRows: 1,
+          fieldCount: 0,
+          info: '',
+          insertId: 6,
+          serverStatus: 2,
+          warningStatus: 0,
+        },
+      );
+    });
+  });
+
+  describe('TypeormService.namedQuery()', () => {
+    it('SELECT * FROM m_pet_type WHERE id in (:...ids) should return array result', async () => {
+      await expect(
+        typeormService.namedQuery(
+          'SELECT * FROM m_pet_type WHERE id in (:...ids)',
+          {
+            ids: [1, 2],
+          },
+        ),
+      ).resolves.toEqual([
+        {
+          id: 1,
+          code: '001',
+          value: '猫',
+          create_user_cd: 'SYSTEM',
+          created_at: new Date('2023-02-25T10:46:47.000Z'),
+          update_user_cd: 'SYSTEM',
+          updated_at: new Date('2023-02-25T10:46:47.000Z'),
+        },
+        {
+          id: 2,
+          code: '002',
+          value: '犬',
+          create_user_cd: 'SYSTEM',
+          created_at: new Date('2023-02-25T10:46:47.000Z'),
+          update_user_cd: 'SYSTEM',
+          updated_at: new Date('2023-02-25T10:46:47.000Z'),
+        },
+      ]);
+    });
+
+    it('INSERT value to m_pet_type should return object', async () => {
+      await typeormService
+        .query('DELETE FROM m_pet_type WHERE id = 7')
+        .catch((err) => {
+          throw err;
+        });
+
+      const query =
+        'INSERT INTO `m_pet_type` (`id`, `code`, `value`) VALUES (7, :code, :value);';
+      await expect(
+        typeormService.namedQuery(query, { code: '006', value: '熊' }),
+      ).resolves.toEqual({
+        affectedRows: 1,
+        fieldCount: 0,
+        info: '',
+        insertId: 7,
+        serverStatus: 2,
+        warningStatus: 0,
+      });
     });
   });
 });

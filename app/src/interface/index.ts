@@ -1,4 +1,4 @@
-export { DATASTORE } from './database.interface';
+export { DATASTORE, In } from './database.interface';
 
 export type {
   Database,
@@ -13,4 +13,5 @@ export type {
   NamedQueryParams,
   ObjectLiteral,
   QueryDeepPartialEntity,
+  FindManyOptions,
 } from './database.interface';

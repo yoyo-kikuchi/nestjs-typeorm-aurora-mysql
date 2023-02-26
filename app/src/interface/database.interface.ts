@@ -7,11 +7,11 @@ import type {
   UpdateResult,
   DeleteResult,
   ObjectLiteral,
-  In,
+  FindManyOptions,
 } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
-export type { In };
+export { In } from 'typeorm';
 export type { QueryDeepPartialEntity };
 export type {
   EntityManager,
@@ -22,6 +22,7 @@ export type {
   UpdateResult,
   DeleteResult,
   ObjectLiteral,
+  FindManyOptions,
 };
 export type QueryParams = string | number | any[];
 export type NamedQueryParams = { [key: string]: any };
@@ -30,10 +31,11 @@ export const DATASTORE = 'datastore';
 
 export interface Database {
   close(): Promise<void>;
+  find<T>(model: EntityTarget<T>, options?: FindManyOptions): Promise<T[]>;
   findOne<T>(
     model: EntityTarget<T>,
     options?: FindOneOptions,
-  ): Promise<T | undefined>;
+  ): Promise<T | null>;
   insert<T>(
     model: EntityTarget<T>,
     entity: QueryDeepPartialEntity<T> | QueryDeepPartialEntity<T>[],
@@ -61,11 +63,7 @@ export interface Database {
       | Date[]
       | FindOptionsWhere<T>,
   ): Promise<DeleteResult>;
-  select<T = any>(query: string, parameters?: QueryParams[]): Promise<T[]>;
-  namedSelect<T = any>(
-    query: string,
-    parameters?: NamedQueryParams,
-  ): Promise<T[]>;
-  exec(query: string, parameters?: QueryParams[]): Promise<void>;
+  query<T = any>(query: string, parameters?: QueryParams[]): Promise<T>;
+  namedQuery<T = any>(query: string, parameters?: NamedQueryParams): Promise<T>;
   transact(callback: (tx: EntityManager) => Promise<void>): Promise<void>;
 }
