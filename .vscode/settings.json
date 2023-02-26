@@ -16,5 +16,8 @@
       "nestjs",
       "riteria",
       "typeorm"
-    ]
+    ],
+    "yaml.schemas": {
+      "https://json.schemastore.org/github-workflow.json": "file:///Users/r-kikuchi/Projects/sample/nestjs-typeorm-aurora-mysql/.github/workflows/deploy.yml"
+    }
   }

@@ -1,0 +1,51 @@
+name: Deploy to Amazon ECS
+
+on: [workflow_dispatch]
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-20.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set environments
+        run: |
+          echo ECR_REPOSITORY=${{ secrets.PROD_AWS_ECR_REPO_NAME }} >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+            --build-arg WRITE_DB_HOST=${{secrets.WRITE_DB_HOST}} \
+            --build-arg WRITE_DB_USER=${{secrets.WRITE_DB_USER}} \
+            --build-arg WRITE_DB_PASSWORD=${{secrets.WRITE_DB_PASSWORD}} \
+            --build-arg READ_DB_HOST=${{secrets.READ_DB_HOST}} \
+            --build-arg READ_DB_USER=${{secrets.READ_DB_USER}} \
+            --build-arg READ_DB_PASSWORD=${{secrets.READ_DB_PASSWORD}} \
+            --build-arg DB_SCHEMA=${{secrets.DB_SCHEMA}} \
+            --build-arg DB_DEBUG=${{secrets.DB_DEBUG}} .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
