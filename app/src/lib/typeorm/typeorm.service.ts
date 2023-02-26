@@ -57,7 +57,6 @@ export class TypeOrmService implements Database, OnModuleInit {
       entities: [...entities],
       synchronize: false,
       logging: this._configService.databaseLogging,
-      trace: true,
     });
   }
 
