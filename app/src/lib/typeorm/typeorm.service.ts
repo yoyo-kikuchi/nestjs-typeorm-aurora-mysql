@@ -61,6 +61,8 @@ export class TypeormService implements Database, OnModuleInit {
 
   // 初期疎通確認
   public async onModuleInit(): Promise<void> {
+    console.log('onModuleInit!!');
+
     await this._dataSource.initialize();
     // connection pool reset
     setInterval(async () => {

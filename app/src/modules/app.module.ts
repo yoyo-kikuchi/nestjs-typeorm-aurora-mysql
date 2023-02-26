@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { CatsController } from './cats.controller';
-import { TypeormService } from 'src/lib/typeorm/typeorm.service';
+import { TypeormService } from 'src/lib/typeorm';
 import { DATASTORE } from 'src/interface';
 import { LoggerModule } from 'src/logger';
+import { OwnersController } from './owners/owners.controller';
+import { PetsController } from './pets/pets.controller';
 
 @Module({
   imports: [LoggerModule],
-  controllers: [CatsController],
+  controllers: [OwnersController, PetsController],
   providers: [
     {
       provide: DATASTORE,
@@ -14,4 +15,4 @@ import { LoggerModule } from 'src/logger';
     },
   ],
 })
-export class CatsModule {}
+export class AppModule {}

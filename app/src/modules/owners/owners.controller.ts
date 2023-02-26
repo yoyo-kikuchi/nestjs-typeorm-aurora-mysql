@@ -6,8 +6,8 @@ import { MPetType } from 'src/modules/models';
 
 import { Database } from 'src/interface';
 
-@Controller('cats')
-export class CatsController {
+@Controller('owners')
+export class OwnersController {
   constructor(
     @Inject(DATASTORE)
     private readonly _database: Database,
