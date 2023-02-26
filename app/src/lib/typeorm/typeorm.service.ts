@@ -1,24 +1,25 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from 'src/config/config.service';
 import { DataSource } from 'typeorm';
-import * as Entities from './models';
 import { LoggerService } from 'src/logger';
-
-import type { Database } from 'src/interface';
-
-const entities = Object.values(Entities);
+import * as Entities from 'src/modules/models';
 
 import type {
-  FindOneOptions,
+  Database,
+  EntityManager,
   EntityTarget,
+  FindOneOptions,
+  FindOptionsWhere,
   InsertResult,
   UpdateResult,
-  FindOptionsWhere,
+  DeleteResult,
+  QueryParams,
   ObjectLiteral,
-} from 'typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+  NamedQueryParams,
+  QueryDeepPartialEntity,
+} from 'src/interface';
 
-export type NamedQueryParams = { [key: string]: any };
+const entities = Object.values(Entities);
 
 @Injectable()
 export class TypeormService implements Database, OnModuleInit {
@@ -59,7 +60,7 @@ export class TypeormService implements Database, OnModuleInit {
   }
 
   // 初期疎通確認
-  async onModuleInit(): Promise<void> {
+  public async onModuleInit(): Promise<void> {
     await this._dataSource.initialize();
     // connection pool reset
     setInterval(async () => {
@@ -92,7 +93,25 @@ export class TypeormService implements Database, OnModuleInit {
   ): Promise<InsertResult> {
     const repository = this._dataSource.getRepository<T>(model);
     const res = await repository.insert(entity).catch((err) => {
-      throw new Error(err);
+      throw err;
+    });
+    return res;
+  }
+
+  public async delete<T>(
+    model: EntityTarget<T>,
+    riteria:
+      | string
+      | string[]
+      | number
+      | number[]
+      | Date
+      | Date[]
+      | FindOptionsWhere<T>,
+  ): Promise<DeleteResult> {
+    const repository = this._dataSource.getRepository<T>(model);
+    const res = await repository.delete(riteria).catch((err) => {
+      throw err;
     });
     return res;
   }
@@ -111,18 +130,18 @@ export class TypeormService implements Database, OnModuleInit {
   ): Promise<UpdateResult> {
     const repository = this._dataSource.getRepository<T>(model);
     const data = await repository.update(riteria, artialEntity).catch((err) => {
-      throw new Error(err);
+      throw err;
     });
     return data;
   }
 
   public async select<T = any>(
     query: string,
-    parameters?: any[],
+    parameters?: QueryParams[],
   ): Promise<T[]> {
     await this._dataSource.initialize();
     const res = await this._dataSource.query(query, parameters).catch((err) => {
-      throw new Error(err);
+      throw err;
     });
     await this._dataSource.destroy();
     return res;
@@ -136,9 +155,39 @@ export class TypeormService implements Database, OnModuleInit {
     const [q, bindValues] = this.named(query, parameters);
 
     const res = await this._dataSource.query(q, bindValues).catch((err) => {
-      throw new Error(err);
+      throw err;
     });
     return res;
+  }
+
+  public async exec(query: string, parameters?: QueryParams[]): Promise<void> {
+    await this._dataSource.query(query, parameters).catch((err) => {
+      throw err;
+    });
+    return;
+  }
+
+  public async transact(
+    callback: (tx: EntityManager) => Promise<void>,
+  ): Promise<void> {
+    const queryRunner = this._dataSource.createQueryRunner();
+    await queryRunner.connect().catch((err) => {
+      throw err;
+    });
+
+    await queryRunner.startTransaction().catch((err) => {
+      throw err;
+    });
+
+    try {
+      await callback(queryRunner.manager);
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
+    return;
   }
 
   private named(query: string, parameters?: ObjectLiteral): [string, any[]] {

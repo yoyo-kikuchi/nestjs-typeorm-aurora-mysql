@@ -2,7 +2,7 @@ import { Controller, Get, Post, Query, Inject } from '@nestjs/common';
 import { FindAllDto } from './dto/find-all.dto';
 import { FindAllEntity } from './entities/find-all.entity';
 import { DATASTORE } from 'src/interface';
-import { MPetType } from 'src/lib/typeorm/models';
+import { MPetType } from 'src/modules/models';
 
 import { Database } from 'src/interface';
 

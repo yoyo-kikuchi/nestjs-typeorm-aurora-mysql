@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeormService } from './typeorm.service';
 import { TypeormModule } from './typeorm.module';
-import { MPetType } from './models';
+import { MPetType } from 'src/modules/models';
 
 describe('TypeormService', () => {
   let typeormService: TypeormService;
