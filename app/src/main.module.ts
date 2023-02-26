@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AppModule } from './modules/app.module';
 import { ConfigModule } from 'src/config/config.module';
+import * as Modules from 'src/modules';
+
+const modules = Object.values(Modules);
 
 @Module({
-  imports: [AppModule, ConfigModule],
+  imports: [...modules, ConfigModule],
   controllers: [],
   providers: [],
 })

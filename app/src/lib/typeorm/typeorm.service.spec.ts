@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeormService } from './typeorm.service';
-import { TypeormModule } from './typeorm.module';
 import { MPetType } from 'src/modules/models';
 
 describe('TypeormService', () => {
@@ -8,7 +7,7 @@ describe('TypeormService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [TypeormModule],
+      imports: [],
       providers: [TypeormService],
     }).compile();
     typeormService = module.get<TypeormService>(TypeormService);
