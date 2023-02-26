@@ -1,2 +1,2 @@
-export { TypeormService } from './typeorm.service';
-export { TypeormModule } from './typeorm.module';
+export { TypeOrmService } from './typeorm.service';
+export { TypeOrmModule } from './typeorm.module';

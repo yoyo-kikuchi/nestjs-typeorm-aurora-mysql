@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { OwnersController } from './owners.controller';
 import { LoggerModule } from 'src/logger';
-import { TypeormService, TypeormModule } from 'src/lib/typeorm';
+import { TypeOrmService, TypeOrmModule } from 'src/lib/typeorm';
 import { DATASTORE } from 'src/interface';
 
 @Module({
-  imports: [LoggerModule, TypeormModule],
+  imports: [LoggerModule, TypeOrmModule],
   controllers: [OwnersController],
   providers: [
     {
       provide: DATASTORE,
-      useExisting: TypeormService,
+      useExisting: TypeOrmService,
     },
   ],
   exports: [],

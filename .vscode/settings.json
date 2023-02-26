@@ -10,5 +10,11 @@
       {
         "mode": "auto"
       }
+    ],
+    "cSpell.words": [
+      "artial",
+      "nestjs",
+      "riteria",
+      "typeorm"
     ]
   }

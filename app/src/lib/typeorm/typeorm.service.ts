@@ -23,7 +23,7 @@ import type {
 const entities = Object.values(Entities);
 
 @Injectable()
-export class TypeormService implements Database, OnModuleInit {
+export class TypeOrmService implements Database, OnModuleInit {
   private readonly _dataSource: DataSource;
   private readonly _lifecycleTime: number;
 
@@ -193,6 +193,7 @@ export class TypeormService implements Database, OnModuleInit {
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      throw err;
     } finally {
       await queryRunner.release();
     }

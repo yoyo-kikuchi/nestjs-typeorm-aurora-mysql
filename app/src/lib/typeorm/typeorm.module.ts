@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeormService } from './typeorm.service';
+import { TypeOrmService } from './typeorm.service';
 import { LoggerModule } from 'src/logger';
 
 @Module({
-  providers: [TypeormService],
+  providers: [TypeOrmService],
   imports: [LoggerModule],
-  exports: [TypeormService],
+  exports: [TypeOrmService],
 })
-export class TypeormModule {}
+export class TypeOrmModule {}

@@ -1,20 +1,20 @@
 import { Test } from '@nestjs/testing';
-import { TypeormService } from './typeorm.service';
-import { TypeormModule } from './typeorm.module';
+import { TypeOrmService } from './typeorm.service';
+import { TypeOrmModule } from './typeorm.module';
 import { LoggerModule } from 'src/logger';
-import { In } from 'src/interface';
+import { In, EntityManager } from 'src/interface';
 
 import { MPetType } from 'src/modules/models';
 
 describe('TypeormService', () => {
-  let typeormService: TypeormService;
+  let typeormService: TypeOrmService;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      imports: [TypeormModule, LoggerModule],
-      providers: [TypeormService],
+      imports: [TypeOrmModule, LoggerModule],
+      providers: [TypeOrmService],
     }).compile();
-    typeormService = module.get<TypeormService>(TypeormService);
+    typeormService = module.get<TypeOrmService>(TypeOrmService);
     await typeormService.initialize();
   });
 
@@ -76,7 +76,7 @@ describe('TypeormService', () => {
         code: '001',
         value: '猫',
         createUserCd: 'SYSTEM',
-        cretedAt: new Date('2023-02-25T10:46:47.000Z'),
+        createdAt: new Date('2023-02-25T10:46:47.000Z'),
         updateUserCd: 'SYSTEM',
         updatedAt: new Date('2023-02-25T10:46:47.000Z'),
       });
@@ -226,6 +226,46 @@ describe('TypeormService', () => {
         serverStatus: 2,
         warningStatus: 0,
       });
+    });
+  });
+
+  describe('TypeormService.transact()', () => {
+    it('single table insert and can see the data before commit', async () => {
+      await expect(
+        typeormService.transact(async (tx: EntityManager) => {
+          await tx.delete<MPetType>(MPetType, { id: 9 });
+          await tx.insert<MPetType>(MPetType, {
+            id: 9,
+            code: '009',
+            value: '鯨',
+          });
+          await tx.findOne<MPetType>(MPetType, {
+            where: { id: 9 },
+          });
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should return err', async () => {
+      await expect(
+        typeormService.transact(async () => {
+          throw new Error('error!!');
+        }),
+      ).rejects.toEqual(new Error('error!!'));
+    });
+
+    it('single table insert then throw Duplicate entry error', async () => {
+      await expect(
+        typeormService.transact(async (tx: EntityManager) => {
+          await tx.insert<MPetType>(MPetType, {
+            id: 1,
+            code: '009',
+            value: '鯨',
+          });
+        }),
+      ).rejects.toEqual(
+        new Error("Duplicate entry '1' for key 'm_pet_type.PRIMARY'"),
+      );
     });
   });
 });
