@@ -64,7 +64,7 @@ export interface Database {
       | FindOptionsWhere<T>,
   ): Promise<DeleteResult>;
   /**
-   * execute query to slave (read only)
+   * execute query to slave (readonly)
    * @param query
    * @param parameters
    */
