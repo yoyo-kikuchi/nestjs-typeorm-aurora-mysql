@@ -190,7 +190,7 @@ export class TypeOrmService implements Database, OnModuleInit {
   }
 
   public async transact(
-    callback: (tx: EntityManager) => Promise<void>,
+    callback: (tx: EntityManager) => Promise<any>,
   ): Promise<void> {
     const queryRunner = this._dataSource.createQueryRunner();
     await queryRunner.connect().catch((err) => {
@@ -201,8 +201,9 @@ export class TypeOrmService implements Database, OnModuleInit {
       throw err;
     });
 
+    let result: any = undefined;
     try {
-      await callback(queryRunner.manager);
+      result = await callback(queryRunner.manager);
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -210,7 +211,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     } finally {
       await queryRunner.release();
     }
-    return;
+    return result;
   }
 
   private named(query: string, parameters?: ObjectLiteral): [string, any[]] {

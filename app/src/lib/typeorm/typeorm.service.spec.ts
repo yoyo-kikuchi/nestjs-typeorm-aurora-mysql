@@ -126,6 +126,26 @@ describe('TypeormService', () => {
     });
   });
 
+  describe('TypeormService.update()', () => {
+    it('should return a value', async () => {
+      await expect(
+        typeormService.update<MPetType>(
+          MPetType,
+          {
+            id: 11,
+          },
+          {
+            code: '011',
+          },
+        ),
+      ).resolves.toEqual({
+        generatedMaps: [],
+        affected: 1,
+        raw: [],
+      });
+    });
+  });
+
   describe('TypeormService.delete()', () => {
     it('should return a value', async () => {
       typeormService.insert<MPetType>(MPetType, {
@@ -259,6 +279,14 @@ describe('TypeormService', () => {
           });
         }),
       ).resolves.toBeUndefined();
+    });
+
+    it('should return err', async () => {
+      await expect(
+        typeormService.transact(async (tx: EntityManager) => {
+          return tx.query('SELECT 1');
+        }),
+      ).resolves.toEqual([{ '1': '1' }]);
     });
 
     it('should return err', async () => {
