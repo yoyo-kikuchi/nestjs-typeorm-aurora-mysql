@@ -11,6 +11,7 @@
         "mode": "auto"
       }
     ],
+    "jestrunner.jestCommand": "yarn test",
     "cSpell.words": [
       "artial",
       "nestjs",

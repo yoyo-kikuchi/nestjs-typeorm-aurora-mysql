@@ -63,7 +63,18 @@ export interface Database {
       | Date[]
       | FindOptionsWhere<T>,
   ): Promise<DeleteResult>;
+  /**
+   * execute query to slave (read only)
+   * @param query
+   * @param parameters
+   */
   query<T = any>(query: string, parameters?: QueryParams[]): Promise<T>;
+  /**
+   * execute query to master
+   * @param query
+   * @param parameters
+   */
+  exec<T = any>(query: string, parameters?: QueryParams[]): Promise<T>;
   namedQuery<T = any>(query: string, parameters?: NamedQueryParams): Promise<T>;
   transact(callback: (tx: EntityManager) => Promise<void>): Promise<void>;
 }

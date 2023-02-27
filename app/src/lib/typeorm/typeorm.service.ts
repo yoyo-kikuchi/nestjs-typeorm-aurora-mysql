@@ -37,6 +37,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     this._dataSource = new DataSource({
       type: 'mysql',
       replication: {
+        selector: 'RR', //(Round-Robin).
         master: {
           host: this._configService.writeDatabaseHost,
           port: this._configService.writeDatabasePort,
@@ -88,10 +89,9 @@ export class TypeOrmService implements Database, OnModuleInit {
     options?: FindManyOptions,
   ): Promise<T[]> {
     const repository = this._dataSource.getRepository(model);
-    const data = await repository.find(options).catch((err) => {
+    return await repository.find(options).catch((err) => {
       throw new Error(err);
     });
-    return data;
   }
 
   public async findOne<T>(
@@ -99,10 +99,9 @@ export class TypeOrmService implements Database, OnModuleInit {
     options?: FindOneOptions,
   ): Promise<T | null> {
     const repository = this._dataSource.getRepository(model);
-    const data = await repository.findOne(options).catch((err) => {
+    return await repository.findOne(options).catch((err) => {
       throw new Error(err);
     });
-    return data;
   }
 
   public async insert<T>(
@@ -110,10 +109,9 @@ export class TypeOrmService implements Database, OnModuleInit {
     entity: QueryDeepPartialEntity<T> | QueryDeepPartialEntity<T>[],
   ): Promise<InsertResult> {
     const repository = this._dataSource.getRepository<T>(model);
-    const res = await repository.insert(entity).catch((err) => {
+    return await repository.insert(entity).catch((err) => {
       throw err;
     });
-    return res;
   }
 
   public async delete<T>(
@@ -128,10 +126,9 @@ export class TypeOrmService implements Database, OnModuleInit {
       | FindOptionsWhere<T>,
   ): Promise<DeleteResult> {
     const repository = this._dataSource.getRepository<T>(model);
-    const res = await repository.delete(riteria).catch((err) => {
+    return await repository.delete(riteria).catch((err) => {
       throw err;
     });
-    return res;
   }
 
   public async update<T>(
@@ -147,20 +144,32 @@ export class TypeOrmService implements Database, OnModuleInit {
     artialEntity: QueryDeepPartialEntity<T>,
   ): Promise<UpdateResult> {
     const repository = this._dataSource.getRepository<T>(model);
-    const data = await repository.update(riteria, artialEntity).catch((err) => {
+    return await repository.update(riteria, artialEntity).catch((err) => {
       throw err;
     });
-    return data;
   }
 
   public async query<T = any>(
     query: string,
     parameters?: QueryParams[],
   ): Promise<T> {
-    const res = await this._dataSource.query(query, parameters).catch((err) => {
+    const slaveQueryRunner = this._dataSource.createQueryRunner('slave');
+    try {
+      return await slaveQueryRunner.query(query, parameters);
+    } catch (err) {
+      throw err;
+    } finally {
+      slaveQueryRunner.release();
+    }
+  }
+
+  public async exec<T = any>(
+    query: string,
+    parameters?: QueryParams[],
+  ): Promise<T> {
+    return await this._dataSource.query(query, parameters).catch((err) => {
       throw err;
     });
-    return res;
   }
 
   // In case in (:...param)
@@ -168,11 +177,16 @@ export class TypeOrmService implements Database, OnModuleInit {
     query: string,
     parameters?: NamedQueryParams,
   ): Promise<T> {
+    const slaveQueryRunner = this._dataSource.createQueryRunner('slave');
+
     const [q, bindValues] = this.named(query, parameters);
-    const res = await this._dataSource.query(q, bindValues).catch((err) => {
+    try {
+      return await slaveQueryRunner.query(q, bindValues);
+    } catch (err) {
       throw err;
-    });
-    return res;
+    } finally {
+      slaveQueryRunner.release();
+    }
   }
 
   public async transact(

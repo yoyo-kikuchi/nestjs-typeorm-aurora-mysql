@@ -96,7 +96,7 @@ describe('TypeormService', () => {
   describe('TypeormService.insert()', () => {
     it('should return a value', async () => {
       await typeormService
-        .query('DELETE FROM m_pet_type WHERE id = 8')
+        .exec('DELETE FROM m_pet_type WHERE id = 8')
         .catch((err) => {
           throw err;
         });
@@ -154,25 +154,43 @@ describe('TypeormService', () => {
       ]);
     });
 
+    it('INSERT value to m_pet_type should return Error', async () => {
+      const query =
+        'INSERT INTO `m_pet_type` (`id`, `code`, `value`) VALUES (6, ?, ?);';
+      await expect(typeormService.query(query, ['005', '豹'])).rejects.toThrow(
+        new Error(
+          'The MySQL server is running with the --read-only option so it cannot execute this statement',
+        ),
+      );
+    });
+  });
+
+  describe('TypeormService.exec()', () => {
+    it('SELECT 1 should return array result', async () => {
+      await expect(typeormService.exec('select 1')).resolves.toEqual([
+        {
+          '1': '1',
+        },
+      ]);
+    });
+
     it('INSERT value to m_pet_type should return object', async () => {
       await typeormService
-        .query('DELETE FROM m_pet_type WHERE id = 6')
+        .exec('DELETE FROM m_pet_type WHERE id = 6')
         .catch((err) => {
           throw err;
         });
 
       const query =
         'INSERT INTO `m_pet_type` (`id`, `code`, `value`) VALUES (6, ?, ?);';
-      await expect(typeormService.query(query, ['005', '豹'])).resolves.toEqual(
-        {
-          affectedRows: 1,
-          fieldCount: 0,
-          info: '',
-          insertId: 6,
-          serverStatus: 2,
-          warningStatus: 0,
-        },
-      );
+      await expect(typeormService.exec(query, ['005', '豹'])).resolves.toEqual({
+        affectedRows: 1,
+        fieldCount: 0,
+        info: '',
+        insertId: 6,
+        serverStatus: 2,
+        warningStatus: 0,
+      });
     });
   });
 
@@ -209,7 +227,7 @@ describe('TypeormService', () => {
 
     it('INSERT value to m_pet_type should return object', async () => {
       await typeormService
-        .query('DELETE FROM m_pet_type WHERE id = 7')
+        .exec('DELETE FROM m_pet_type WHERE id = 7')
         .catch((err) => {
           throw err;
         });
@@ -218,14 +236,11 @@ describe('TypeormService', () => {
         'INSERT INTO `m_pet_type` (`id`, `code`, `value`) VALUES (7, :code, :value);';
       await expect(
         typeormService.namedQuery(query, { code: '006', value: '熊' }),
-      ).resolves.toEqual({
-        affectedRows: 1,
-        fieldCount: 0,
-        info: '',
-        insertId: 7,
-        serverStatus: 2,
-        warningStatus: 0,
-      });
+      ).rejects.toThrow(
+        new Error(
+          'The MySQL server is running with the --read-only option so it cannot execute this statement',
+        ),
+      );
     });
   });
 
@@ -263,7 +278,7 @@ describe('TypeormService', () => {
             value: '鯨',
           });
         }),
-      ).rejects.toEqual(
+      ).rejects.toThrow(
         new Error("Duplicate entry '1' for key 'm_pet_type.PRIMARY'"),
       );
     });
