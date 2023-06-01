@@ -22,73 +22,142 @@ import type {
 
 const entities = Object.values(Entities);
 
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
 @Injectable()
 export class TypeOrmService implements Database, OnModuleInit {
-  private readonly _dataSource: DataSource;
+  private _writeDataSource: DataSource;
+  private _readDataSourceMain: DataSource;
+  private _readDataSourceSub: DataSource;
+  private _isAwaitDestroy = false;
+  private _isDataSourceMainActive = true;
+  private readonly _graceTime: number;
   private readonly _lifecycleTime: number;
 
   constructor(
     private readonly _configService: ConfigService,
     private readonly _loggerService: LoggerService,
   ) {
+    this._graceTime = 10000;
     this._lifecycleTime =
       this._configService.databaseConnectionLifecycle || 30000;
+    this._writeDataSource = this.writeDataSource;
+    this._readDataSourceMain = this.readDataSource;
+    this._readDataSourceSub = this.readDataSource;
+  }
 
-    this._dataSource = new DataSource({
+  private get writeDataSource(): DataSource {
+    return new DataSource({
       type: 'mysql',
-      replication: {
-        selector: 'RR', //(Round-Robin).
-        master: {
-          host: this._configService.writeDatabaseHost,
-          port: this._configService.writeDatabasePort,
-          username: this._configService.writeDatabaseUser,
-          password: this._configService.writeDatabasePass,
-          database: this._configService.databaseSchema,
-        },
-        slaves: [
-          {
-            host: this._configService.readDatabaseHost,
-            port: this._configService.readDatabasePort,
-            username: this._configService.readDatabaseUser,
-            password: this._configService.readDatabasePass,
-            database: this._configService.databaseSchema,
-          },
-        ],
-      },
+      host: this._configService.writeDatabaseHost,
+      port: this._configService.writeDatabasePort,
+      username: this._configService.writeDatabaseUser,
+      password: this._configService.writeDatabasePass,
+      database: this._configService.databaseSchema,
       entities: [...entities],
       synchronize: false,
       logging: this._configService.databaseLogging,
     });
   }
 
+  private get readDataSource(): DataSource {
+    return new DataSource({
+      type: 'mysql',
+      host: this._configService.readDatabaseHost,
+      port: this._configService.readDatabasePort,
+      username: this._configService.readDatabaseUser,
+      password: this._configService.readDatabasePass,
+      database: this._configService.databaseSchema,
+      entities: [...entities],
+      synchronize: false,
+      logging: this._configService.databaseLogging,
+    });
+  }
+
+  private get connection(): DataSource {
+    if (this._isDataSourceMainActive) {
+      this._loggerService.info('use dataSourceMain');
+      return this._readDataSourceMain;
+    } else {
+      this._loggerService.info('use dataSourceSub');
+      return this._readDataSourceSub;
+    }
+  }
+
   // 初期疎通確認
   public async onModuleInit(): Promise<void> {
     this._loggerService.info('TypeormService onModuleInit!!');
-
-    await this._dataSource.initialize();
     // connection pool reset
+    await this._writeDataSource.initialize();
+    await this._readDataSourceMain.initialize();
     setInterval(async () => {
-      await this._dataSource.destroy();
-      this._loggerService.debug('reseated connection pool');
-
-      await this._dataSource.initialize();
-      this._loggerService.debug('reconnected connection pool');
+      if (this._isAwaitDestroy) return;
+      await this.initializeConnection().catch((err) => {
+        this._loggerService.warn(err);
+      });
+      setTimeout(async () => {
+        await this.destroyConnection().catch((err) => {
+          this._loggerService.warn(err);
+          console.log(this._isAwaitDestroy);
+          return;
+        });
+      }, this._graceTime);
     }, this._lifecycleTime);
   }
 
+  private async initializeConnection(): Promise<void> {
+    if (this._isDataSourceMainActive) {
+      await this._readDataSourceSub.initialize().catch((err) => {
+        throw new Error(`cannot reconnect sub dataSource err: ${err}`);
+      });
+      this._loggerService.info('dataSourceSub reconnected connection pool');
+      this._isDataSourceMainActive = false;
+    } else {
+      await this._readDataSourceMain.initialize().catch((err) => {
+        throw new Error(`cannot reconnect main dataSource err: ${err}`);
+      });
+      this._loggerService.info('dataSourceMain reconnected connection pool');
+      this._isDataSourceMainActive = true;
+    }
+    this._loggerService.info('connection end');
+  }
+
+  /**
+   * MainDataSourceがアクティブな場合はSubDataSourceをcloseする
+   */
+  private async destroyConnection(): Promise<void> {
+    this._isAwaitDestroy = true;
+    if (this._isDataSourceMainActive) {
+      this._loggerService.info('destroyConnection 31');
+      await this._readDataSourceSub.destroy().catch((err) => {
+        throw new Error(`cannot close sub dataSource err: ${err}`);
+      });
+      this._loggerService.info('dataSourceSub reseated connection pool');
+    } else {
+      await this._readDataSourceMain.destroy().catch((err) => {
+        throw new Error(`cannot close main dataSource err: ${err}`);
+      });
+      this._loggerService.info('dataSourceMain reseated connection pool');
+    }
+    this._isAwaitDestroy = false;
+  }
+
   public async initialize(): Promise<void> {
-    await this._dataSource.initialize();
+    await this._writeDataSource.initialize();
+    await this._readDataSourceMain.initialize();
   }
 
   public async close(): Promise<void> {
-    await this._dataSource.destroy();
+    await this._writeDataSource.destroy();
+    await this.connection.destroy();
   }
 
   public async find<T>(
     model: EntityTarget<T>,
     options?: FindManyOptions,
   ): Promise<T[]> {
-    const repository = this._dataSource.getRepository(model);
+    const repository = this.connection.getRepository(model);
+    await sleep(10000);
     return await repository.find(options).catch((err) => {
       throw new Error(err);
     });
@@ -98,7 +167,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     model: EntityTarget<T>,
     options?: FindOneOptions,
   ): Promise<T | null> {
-    const repository = this._dataSource.getRepository(model);
+    const repository = this.connection.getRepository(model);
     return await repository.findOne(options).catch((err) => {
       throw new Error(err);
     });
@@ -108,7 +177,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     model: EntityTarget<T>,
     entity: QueryDeepPartialEntity<T> | QueryDeepPartialEntity<T>[],
   ): Promise<InsertResult> {
-    const repository = this._dataSource.getRepository<T>(model);
+    const repository = this._writeDataSource.getRepository<T>(model);
     return await repository.insert(entity).catch((err) => {
       throw err;
     });
@@ -125,7 +194,7 @@ export class TypeOrmService implements Database, OnModuleInit {
       | Date[]
       | FindOptionsWhere<T>,
   ): Promise<DeleteResult> {
-    const repository = this._dataSource.getRepository<T>(model);
+    const repository = this._writeDataSource.getRepository<T>(model);
     return await repository.delete(riteria).catch((err) => {
       throw err;
     });
@@ -143,7 +212,7 @@ export class TypeOrmService implements Database, OnModuleInit {
       | FindOptionsWhere<T>,
     artialEntity: QueryDeepPartialEntity<T>,
   ): Promise<UpdateResult> {
-    const repository = this._dataSource.getRepository<T>(model);
+    const repository = this._writeDataSource.getRepository<T>(model);
     return await repository.update(riteria, artialEntity).catch((err) => {
       throw err;
     });
@@ -153,7 +222,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     query: string,
     parameters?: QueryParams[],
   ): Promise<T> {
-    const slaveQueryRunner = this._dataSource.createQueryRunner('slave');
+    const slaveQueryRunner = this.connection.createQueryRunner('slave');
     try {
       return await slaveQueryRunner.query(query, parameters);
     } catch (err) {
@@ -167,7 +236,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     query: string,
     parameters?: QueryParams[],
   ): Promise<T> {
-    return await this._dataSource.query(query, parameters).catch((err) => {
+    return await this.connection.query(query, parameters).catch((err) => {
       throw err;
     });
   }
@@ -177,7 +246,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     query: string,
     parameters?: NamedQueryParams,
   ): Promise<T> {
-    const slaveQueryRunner = this._dataSource.createQueryRunner('slave');
+    const slaveQueryRunner = this.connection.createQueryRunner('slave');
 
     const [q, bindValues] = this.named(query, parameters);
     try {
@@ -185,33 +254,33 @@ export class TypeOrmService implements Database, OnModuleInit {
     } catch (err) {
       throw err;
     } finally {
-      slaveQueryRunner.release();
+      await slaveQueryRunner.release().catch((err) => {
+        throw err;
+      });
     }
   }
 
   public async transact(
     callback: (tx: EntityManager) => Promise<any>,
   ): Promise<void> {
-    const queryRunner = this._dataSource.createQueryRunner();
+    const queryRunner = this._writeDataSource.createQueryRunner();
     await queryRunner.connect().catch((err) => {
       throw err;
     });
-
     await queryRunner.startTransaction().catch((err) => {
       throw err;
     });
-
-    let result: any = undefined;
-    try {
-      result = await callback(queryRunner.manager);
-      await queryRunner.commitTransaction();
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      throw err;
-    } finally {
-      await queryRunner.release();
-    }
-    return result;
+    return await callback(queryRunner.manager)
+      .then(async () => {
+        await queryRunner.commitTransaction();
+      })
+      .catch(async (err) => {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      })
+      .finally(async () => {
+        await queryRunner.release();
+      });
   }
 
   private named(query: string, parameters?: ObjectLiteral): [string, any[]] {
@@ -219,7 +288,7 @@ export class TypeOrmService implements Database, OnModuleInit {
     if (typeof parameters !== 'undefined') {
       prams = parameters;
     }
-    const entityManage = this._dataSource.createEntityManager();
+    const entityManage = this.connection.createEntityManager();
     const [q, bindValues] =
       entityManage.connection.driver.escapeQueryWithParameters(
         query,

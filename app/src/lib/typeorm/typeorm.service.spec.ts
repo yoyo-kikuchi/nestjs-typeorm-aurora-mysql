@@ -15,7 +15,8 @@ describe('TypeormService', () => {
       providers: [TypeOrmService],
     }).compile();
     typeormService = module.get<TypeOrmService>(TypeOrmService);
-    await typeormService.initialize();
+    await typeormService.onModuleInit();
+    // await typeormService.initialize();
   });
 
   afterEach(async () => {
@@ -50,7 +51,7 @@ describe('TypeormService', () => {
           updatedAt: new Date('2023-02-25T10:46:47.000Z'),
         },
       ]);
-    });
+    }, 30000);
 
     it('should return empty array', async () => {
       await expect(
@@ -215,6 +216,16 @@ describe('TypeormService', () => {
   });
 
   describe('TypeormService.namedQuery()', () => {
+    it('SELECT SLEEP(10) as sleep', async () => {
+      await expect(
+        typeormService.namedQuery('SELECT SLEEP(10)'),
+      ).resolves.toEqual([
+        {
+          'SLEEP(10)': '0',
+        },
+      ]);
+    }, 30000);
+
     it('SELECT * FROM m_pet_type WHERE id in (:...ids) should return array result', async () => {
       await expect(
         typeormService.namedQuery(
@@ -243,7 +254,7 @@ describe('TypeormService', () => {
           updated_at: new Date('2023-02-25T10:46:47.000Z'),
         },
       ]);
-    });
+    }, 30000);
 
     it('INSERT value to m_pet_type should return object', async () => {
       await typeormService
@@ -310,5 +321,15 @@ describe('TypeormService', () => {
         new Error("Duplicate entry '1' for key 'm_pet_type.PRIMARY'"),
       );
     });
+
+    it('1', async () => {
+      await expect(
+        typeormService.transact(async (tx: EntityManager) => {
+          await tx.query('SELECT SLEEP(10)');
+        }),
+      ).rejects.toThrow(
+        new Error("Duplicate entry '1' for key 'm_pet_type.PRIMARY'"),
+      );
+    }, 30000);
   });
 });

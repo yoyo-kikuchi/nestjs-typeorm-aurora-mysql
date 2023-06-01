@@ -53,7 +53,7 @@ export class EnvValidator {
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
-  DB_CONNECTION_LIFECYCLE_TIME = 30000;
+  DB_CONNECTION_LIFECYCLE_TIME = 5000;
 }
 
 export function validate(config: Record<string, unknown>) {
