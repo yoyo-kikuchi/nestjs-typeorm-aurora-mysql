@@ -98,8 +98,6 @@ export class TypeOrmService implements Database, OnModuleInit {
       setTimeout(async () => {
         await this.destroyConnection().catch((err) => {
           this._loggerService.warn(err);
-          console.log(this._isAwaitDestroy);
-          return;
         });
       }, this._graceTime);
     }, this._lifecycleTime);
